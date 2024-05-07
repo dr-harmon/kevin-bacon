@@ -2,6 +2,8 @@
 
 #include "graph.h"
 
+#include <queue>
+
 template <typename VertexElement, typename EdgeElement>
 class BFS {
 private:
@@ -46,7 +48,29 @@ protected:
     }
 
     void traverse(Vertex& root) {
-        // TODO
+        initialize();
+        std::queue<Vertex> queue;
+        startVisit(root);
+        visit(root);
+        queue.push(root);
+        while (!queue.empty() && !isDone()) {
+            Vertex v = queue.front();
+            queue.pop();
+            auto edges = v.incidentEdges();
+            for (auto pe = edges.begin(); pe != edges.end(); ++pe) {
+                Edge& edge = *pe;
+                if (!isVisited(edge)) {
+                    visit(edge);
+                    Vertex& w = edge.opposite(v);
+                    if (!isVisited(w)) {
+                        traverseDiscovery(edge, v);
+                        startVisit(w);
+                        visit(w);
+                        queue.push(w);
+                    }
+                }
+            }
+        }
     }
 
     virtual void startVisit(Vertex& v) {}

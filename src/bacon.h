@@ -12,7 +12,26 @@ private:
 
     std::string baconID;
     Vertex sourceVertex;
+    Vertex targetVertex;
     std::unordered_map<std::string,Vertex> vertexMap;
+    std::unordered_map<Vertex,Vertex,Vertex::Hash> parents;
+    bool done = false;
+
+protected:
+
+    void startVisit(Vertex& v) {
+        if (v == targetVertex) {
+            done = true;
+        }
+    }
+
+    void traverseDiscovery(Edge& e, Vertex& from) {
+        parents.emplace(e.opposite(from), from);
+    }
+
+    bool isDone() const {
+        return done;
+    }
 
 public:
 
@@ -30,9 +49,14 @@ public:
 
     std::vector<std::string> getBaconPath(const std::string& actor) {
         std::vector<std::string> path;
-
-        // TODO
-
+        targetVertex = vertexMap.at(actor);
+        traverse(sourceVertex);
+        Vertex parent = vertexMap.at(actor);
+        while (parents.contains(parent)) {
+            path.push_back((*parent).element);
+            parent = parents.at(parent);
+        }
+        path.push_back(baconID);
         return path;
     }
 };

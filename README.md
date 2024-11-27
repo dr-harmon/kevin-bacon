@@ -4,10 +4,14 @@
 
 In 1994, this idea was popularized as a party game called [Six Degrees of Kevin Bacon](https://en.wikipedia.org/wiki/Six_Degrees_of_Kevin_Bacon). Players challenge each other to arbitrarily choose an actor and then connect them to another actor via a film that both actors have appeared in together, repeating this process to try to find the shortest path that ultimately leads to actor Kevin Bacon.
 
+## Requirements
+
 In this assignment, you are to create a "Bacon finder" based on this game. Given the name of an actor, your program should find the shortest path that leads to Kevin Bacon. For example, Dustin Hoffman and Tom Cruise starred in "Rain Man", and Tom Cruise and Kevin Bacon starred in "A Few Good Men." Therefore, if given the name "Dustin Hoffman", your program should print:
 
     The Bacon number of Dustin Hoffman is 2:
       Dustin Hoffman -> Rain Man -> Tom Cruise -> A Few Good Men -> Kevin Bacon
+
+Your implementation must be built upon the provided `Graph` class and its subclasses. Do not write your own versions of these classes. You may add methods to `Graph` but do _not_ change `graph.h` in any other way. (Hint: Use the template method pattern described in the book.)
 
 ## Data Set
 

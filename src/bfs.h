@@ -17,10 +17,6 @@ private:
     };
 
     typedef Graph<VertexData,EdgeData> G;
-    typedef typename G::VertexList VertexList;
-    typedef typename G::VertexItor VertexItor;
-    typedef typename G::EdgeList EdgeList;
-    typedef typename G::EdgeItor EdgeItor;
     
     G graph;
 
@@ -40,13 +36,11 @@ public:
 protected:
 
     void initialize() {
-        VertexList verts = graph.vertices();
-        for (VertexItor pv = verts.begin(); pv != verts.end(); ++pv) {
+        for (auto pv = graph.vertices().begin(); pv != graph.vertices().end(); ++pv) {
             unvisit(*pv);
         }
 
-        EdgeList edges = graph.edges();
-        for (EdgeItor pe = edges.begin(); pe != edges.end(); ++pe) {
+        for (auto pe = graph.edges().begin(); pe != graph.edges().end(); ++pe) {
             unvisit(*pe);
         }
     }

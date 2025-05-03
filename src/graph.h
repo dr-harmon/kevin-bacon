@@ -1,39 +1,26 @@
 #pragma once
 
-#include <algorithm>
+#include <ranges>
+#include <stdexcept>
 #include <unordered_map>
 #include <vector>
 
 template <typename VertexElement, typename EdgeElement>
 class Graph {
 public:
-
     class Vertex;
-    class VertexItor;
     class Edge;
-    class EdgeItor;
-    typedef std::unordered_map<int,std::vector<int>> AdjacencyList;
+
+protected:
     typedef std::unordered_map<int,Vertex> VertexMap;
     typedef std::unordered_map<int,Edge> EdgeMap;
+    // In this implementation, the adjacency list maps a vertex ID to
+    // the IDs of its incident edges.
+    typedef std::unordered_map<int,std::vector<int>> AdjacencyList;
 
-    class VertexList {
-    public:
-        VertexItor begin() {
-            return VertexItor(vertices.begin(), vertexMap);
-        }
+public:
 
-        VertexItor end() {
-            return VertexItor(vertices.end(), vertexMap);
-        }
-
-    private:
-        std::vector<int> vertices;
-        VertexMap& vertexMap;
-        friend Graph;
-
-        VertexList(std::vector<int> _vertices, VertexMap& _vertexMap) : vertices(_vertices), vertexMap(_vertexMap) {}
-    };
-
+    class EdgeItor;
     class EdgeList {
     public:
         EdgeItor begin() {
@@ -46,45 +33,16 @@ public:
 
     private:
         std::vector<int> edges;
-        EdgeMap& edgeMap;
+        EdgeMap *edgeMap;
         friend Graph;
 
-        EdgeList(std::vector<int>& _edges, EdgeMap& _edgeMap) : edges(_edges), edgeMap(_edgeMap) {}
-    };
-
-    class VertexItor {
-    public:
-        Vertex& operator*() const {
-            return vertexMap.at(*it);
-        }
-
-        VertexItor& operator++() {
-            ++it;
-            return *this;
-        }
-
-        VertexItor operator++(int) {
-            VertexItor temp = *this;
-            ++it;
-            return temp;
-        }
-
-        bool operator!=(const VertexItor& other) const {
-            return it != other.it;
-        }
-
-    private:
-        std::vector<int>::iterator it;
-        VertexMap& vertexMap;
-        friend VertexList;
-
-        VertexItor(std::vector<int>::iterator _it, VertexMap& _vertexMap) : it(_it), vertexMap(_vertexMap) {}
+        EdgeList(std::vector<int>& _edges, EdgeMap *_edgeMap) : edges(_edges), edgeMap(_edgeMap) {}
     };
 
     class EdgeItor {
     public:
         Edge& operator*() const {
-            return edgeMap.at(*it);
+            return edgeMap->at(*it);
         }
 
         EdgeItor& operator++() {
@@ -104,20 +62,21 @@ public:
 
     private:
         std::vector<int>::iterator it;
-        EdgeMap& edgeMap;
+        EdgeMap *edgeMap;
         friend EdgeList;
 
-        EdgeItor(std::vector<int>::iterator _it, EdgeMap& _edgeMap) : it(_it), edgeMap(_edgeMap)  {}
+        EdgeItor(std::vector<int>::iterator _it, EdgeMap *_edgeMap) : it(_it), edgeMap(_edgeMap)  {}
     };
 
     class Vertex {
     public:
+        Vertex() : element(VertexElement{}), id(-1), adjacencyList(nullptr), edgeMap(nullptr) {}
 
         bool isAdjacentTo(const Vertex& v) const {
-            for (int edgeID : g.adjacencyList.at(id)) {
-                Edge& edge = g.edgeMap.at(edgeID);
-                if ((id == edge.startVertex && v.id == edge.endVertex) ||
-                    (id == edge.endVertex && v.id == edge.startVertex)) {
+            for (int edgeID : adjacencyList->at(id)) {
+                Edge edge = edgeMap->at(edgeID);
+                if ((id == edge.startVertexID && v.id == edge.endVertexID) ||
+                    (id == edge.endVertexID && v.id == edge.startVertexID)) {
                     return true;
                 }
             }
@@ -125,7 +84,22 @@ public:
         }
 
         EdgeList incidentEdges() const {
-            return EdgeList(g.adjacencyList.at(id), g.edgeMap);
+            return EdgeList(adjacencyList->at(id), edgeMap);
+        }
+
+        EdgeList outEdges() const {
+            std::vector<int> edges;
+            for (int edgeID : adjacencyList->at(id)) {
+                Edge& edge = edgeMap->at(edgeID);
+                if (edge.isDirected() && edge.origin().id == id) {
+                    edges.push_back(edgeID);
+                }
+            }
+            return EdgeList(edges, edgeMap);
+        }
+
+        const VertexElement& operator*() const {
+            return element;
         }
 
         VertexElement& operator*() {
@@ -133,30 +107,60 @@ public:
         }
 
         bool operator ==(const Vertex& other) const {
-            return *this == *other;
+            return id == other.id;
         }
 
-    private:
+        struct Hash {
+            size_t operator()(const Vertex& v) const {
+                return std::hash<int>()(v.id);
+            }
+        };
+
+    public:
         VertexElement element;
         int id;
-        Graph& g;
+        AdjacencyList *adjacencyList;
+        EdgeMap *edgeMap;
         friend Graph;
 
-        Vertex(const VertexElement& _element, int _id, Graph& _g) : element(_element), id(_id), g(_g) {}
+        Vertex(const VertexElement& _element, int _id, EdgeMap *_edgeMap, AdjacencyList *_adjacencyList) :
+            element(_element), id(_id), edgeMap(_edgeMap), adjacencyList(_adjacencyList) {}
     };
 
     class Edge {
     public:
-        VertexList endVertices() const {
-            return VertexList({startVertex, endVertex}, g.vertexMap);
+        Edge() : element(EdgeElement{}), id(-1), startVertexID(-1), endVertexID(-1), vertexMap(nullptr) {}
+
+        std::pair<Vertex,Vertex> endVertices() const {
+            return std::make_pair(vertexMap->at(startVertexID), vertexMap->at(endVertexID));
+        }
+
+        const Vertex& opposite(const Vertex& v) const {
+            return vertexMap->at(v.id == startVertexID ? endVertexID : startVertexID);
         }
 
         Vertex& opposite(const Vertex& v) {
-            return g.vertexMap.at(v.id == startVertex ? endVertex : startVertex);
+            return vertexMap->at(v.id == startVertexID ? endVertexID : startVertexID);
+        }
+
+        Vertex& origin() {
+            return vertexMap->at(startVertexID);
+        }
+
+        Vertex& dest() {
+            return vertexMap->at(endVertexID);
         }
 
         bool isIncidentOn(const Vertex& v) const {
-            return v.id == startVertex || v.id == endVertex;
+            return v.id == startVertexID || v.id == endVertexID;
+        }
+
+        bool isDirected() const {
+            return directed;
+        }
+
+        const EdgeElement& operator*() const {
+            return element;
         }
 
         EdgeElement& operator*() {
@@ -166,31 +170,28 @@ public:
     private:
         EdgeElement element;
         int id;
-        int startVertex, endVertex;
-        Graph& g;
+        int startVertexID, endVertexID;
+        bool directed;
+        VertexMap *vertexMap;
         friend Graph;
 
-        Edge(const EdgeElement& _element, int _id, int _startVertex, int _endVertex, Graph& _g) :
-            element(_element), id(_id), startVertex(_startVertex), endVertex(_endVertex), g(_g) {}
+        Edge(const EdgeElement& _element, int _id, int _startVertexID, int _endVertexID, bool _directed, VertexMap *_vertexMap) :
+            element(_element), id(_id), startVertexID(_startVertexID), endVertexID(_endVertexID), directed(_directed), vertexMap(_vertexMap) {}
     };
 
     Vertex& insertVertex(const VertexElement& element) {
-        Vertex v(element, nextVertexID++, *this);
+        Vertex v(element, nextVertexID++, &edgeMap, &adjacencyList);
         vertexMap.emplace(v.id, v);
-        adjacencyList[v.id] = {};
+        adjacencyList.emplace(v.id, std::vector<int>{});
         return vertexMap.at(v.id);
     }
 
     Edge& insertEdge(const Vertex& v, const Vertex& u, const EdgeElement& element) {
-        if (vertexMap.count(v.id) == 0 || vertexMap.count(u.id) == 0) {
-            throw std::runtime_error("Cannot add edge between unknown vertex");
-        }
+        return insertEdge(v, u, element, false);
+    }
 
-        Edge e(element, nextEdgeID++, v.id, u.id, *this);
-        edgeMap.emplace(e.id, e);
-        adjacencyList[v.id].push_back(e.id);
-        adjacencyList[u.id].push_back(e.id);
-        return edgeMap.at(e.id);
+    Edge& insertDirectedEdge(const Vertex& v, const Vertex& u, const EdgeElement& element) {
+        return insertEdge(v, u, element, true);
     }
 
     void eraseVertex(const Vertex& v) {
@@ -202,28 +203,44 @@ public:
 
     void eraseEdge(const Edge& e) {
         edgeMap.erase(e.id);
-        auto startEdges = adjacencyList.at(e.startVertex);
+        auto startEdges = adjacencyList.at(e.startVertexID);
         startEdges.erase(std::remove(startEdges.begin(), startEdges.end(), e.id), startEdges.end());
-        auto endEdges = adjacencyList.at(e.endVertex);
+        auto endEdges = adjacencyList.at(e.endVertexID);
         endEdges.erase(std::remove(endEdges.begin(), endEdges.end(), e.id), endEdges.end());
     }
 
-    VertexList vertices() {
-        std::vector<int> vertexIDs;
-        std::transform(vertexMap.begin(), vertexMap.end(), std::back_inserter(vertexIDs), [](auto pair){ return pair.first;});
-        return VertexList(vertexIDs, vertexMap);
+    auto vertices() const {
+        return std::views::values(vertexMap);
     }
 
-    EdgeList edges() {
-        std::vector<int> edgeIDs;
-        std::transform(edgeMap.begin(), edgeMap.end(), std::back_inserter(edgeIDs), [](auto pair){ return pair.first;});
-        return EdgeList(edgeIDs, edgeMap);
+    auto vertices() {
+        return std::views::values(vertexMap);
+    }
+
+    auto edges() const {
+        return std::views::values(edgeMap);
+    }
+
+    auto edges() {
+        return std::views::values(edgeMap);
     }
 
 private:
     int nextVertexID = 1;
     int nextEdgeID = 1;
-    AdjacencyList adjacencyList;
     VertexMap vertexMap;
     EdgeMap edgeMap;
+    AdjacencyList adjacencyList;
+
+    Edge& insertEdge(const Vertex& v, const Vertex& u, const EdgeElement& element, bool directed) {
+        if (!vertexMap.contains(v.id) || !vertexMap.contains(u.id)) {
+            throw std::runtime_error("Cannot add edge between unknown vector");
+        }
+
+        Edge e(element, nextEdgeID++, v.id, u.id, directed, &vertexMap);
+        edgeMap.emplace(e.id, e);
+        adjacencyList.at(v.id).push_back(e.id);
+        adjacencyList.at(u.id).push_back(e.id);
+        return edgeMap.at(e.id);
+    }
 };

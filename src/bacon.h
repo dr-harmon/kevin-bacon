@@ -11,18 +11,18 @@ class BaconFinder : public BFS<std::string,int> {
 private:
 
     std::string baconID;
-    Vertex& baconVertex;
+    Vertex sourceVertex;
     std::unordered_map<std::string,Vertex> vertexMap;
 
 public:
 
-    BaconFinder(std::string _baconID) : baconID(_baconID), baconVertex(insertVertex(_baconID)) {
-        vertexMap.emplace(baconID, baconVertex);
+    BaconFinder(std::string _baconID) : baconID(_baconID), sourceVertex(insertVertex(_baconID)) {
+        vertexMap.emplace(baconID, sourceVertex);
     }
 
     void addRelationship(const std::string& movie, const std::string& actor) {
-        Vertex movieVertex = vertexMap.count(movie) > 0 ? vertexMap.at(movie) : insertVertex(movie);
-        Vertex actorVertex = vertexMap.count(actor) > 0 ? vertexMap.at(actor) : insertVertex(actor);
+        Vertex movieVertex = vertexMap.contains(movie) ? vertexMap.at(movie) : insertVertex(movie);
+        Vertex actorVertex = vertexMap.contains(actor) ? vertexMap.at(actor) : insertVertex(actor);
         insertEdge(movieVertex, actorVertex, 0);
         vertexMap.emplace(movie, movieVertex);
         vertexMap.emplace(actor, actorVertex);
